@@ -1,0 +1,14 @@
+# vim
+*.swp
+*.swo
+
+# Rust
+/target
+
+# Local
+/local
+/build
+
+# Bazel
+/bazel-*
+MODULE.bazel.lock
