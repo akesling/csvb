@@ -8,6 +8,8 @@ rust_library(
     srcs = glob(["src/**/*.rs"], exclude=["src/bin/*"]),
     data = [],
     deps = [
+        "//csvb_engine",
+    ] + [
         "@crate_index//:anyhow",
         "@crate_index//:arrow",
         "@crate_index//:chrono",
@@ -44,6 +46,7 @@ rust_binary(
     srcs = ["src/bin/csvb.rs"],
     deps = [
         ":csvb",
+        "//csvb_engine",
     ] + [
         "@crate_index//:anyhow",
         "@crate_index//:arrow",

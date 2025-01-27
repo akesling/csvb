@@ -762,6 +762,32 @@ dependencies = [
  "arrow",
  "chrono",
  "clap",
+ "csvb-engine",
+ "datafusion",
+ "futures",
+ "itertools",
+ "log",
+ "object_store",
+ "pretty_assertions",
+ "rand",
+ "regex",
+ "serde",
+ "serde_json",
+ "simplelog",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "csvb-engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "chrono",
+ "clap",
  "datafusion",
  "futures",
  "itertools",

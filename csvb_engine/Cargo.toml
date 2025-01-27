@@ -1,5 +1,5 @@
 [package]
-name = "csvb"
+name = "csvb-engine"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,7 +7,6 @@ edition = "2021"
 anyhow = { workspace = true }
 arrow = { workspace = true }
 chrono = { workspace = true }
-csvb-engine = { workspace = true }
 clap = { workspace = true }
 datafusion = { workspace = true }
 futures = { workspace = true }
