@@ -27,27 +27,6 @@ struct HaikuOptions {
     all: bool,
 }
 
-/// Print a random CSV-related haiku
-fn print_haiku(options: &HaikuOptions) {
-    use rand::seq::SliceRandom as _;
-
-    println!("line 1: line 2: line 3");
-    if options.all {
-        for h in csvb::HAIKUS {
-            println!("{}", h.join(":"))
-        }
-    } else {
-        let mut rng = rand::thread_rng();
-        println!(
-            "{}",
-            csvb::HAIKUS
-                .choose(&mut rng)
-                .expect("at least one haiku")
-                .join(":")
-        )
-    }
-}
-
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs
 fn as_level_pairs(config: &[String]) -> Result<Vec<(&str, simplelog::LevelFilter)>> {
     let mut pairs = Vec::with_capacity(config.len());
@@ -119,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
     log::trace!("Logging initialized, commands parsed...");
 
     match args.command {
-        Command::Haiku(options) => print_haiku(&options),
+        Command::Haiku(options) => csvb::print_haiku(options.all),
     }
     Ok(())
 }

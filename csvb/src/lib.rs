@@ -50,3 +50,24 @@ pub static HAIKUS: [[&str; 3]; 10] = [
         "A programmer’s peace.",
     ],
 ];
+
+/// Print a random CSV-related haiku
+pub fn print_haiku(print_all: bool) {
+    use rand::seq::SliceRandom as _;
+
+    println!("line 1: line 2: line 3");
+    if print_all {
+        for h in HAIKUS {
+            println!("{}", h.join(":"))
+        }
+    } else {
+        let mut rng = rand::thread_rng();
+        println!(
+            "{}",
+            HAIKUS
+                .choose(&mut rng)
+                .expect("at least one haiku")
+                .join(":")
+        )
+    }
+}
