@@ -95,6 +95,7 @@ pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>) -> Result<()> {
 
     let runtime_env = rt_builder.build_arc()?;
     let ctx = SessionContext::new_with_config_rt(session_config, runtime_env);
+    // TODO(alex): Add UDF to print haiku
 
     let df = ctx.read_csv(sources, CsvReadOptions::new()).await?;
     println!("Record count: {}", df.count().await?);
