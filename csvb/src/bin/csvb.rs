@@ -12,12 +12,18 @@ struct Args {
     /// Log level pairs of the form <MODULE>:<LEVEL>.
     #[arg(long)]
     log_levels: Option<Vec<String>>,
+
+    /// Max number of bytes available for memory pool, defaults to 10GiB
+    #[arg(long, default_value_t = 10737418240)]
+    memory_pool_bytes: usize,
 }
 
 #[derive(clap::Subcommand, Debug)]
 enum Command {
     /// Print a random haiku
     Haiku(HaikuOptions),
+    /// Print a random haiku
+    Cmd(CmdOptions),
 }
 
 #[derive(clap::Parser, Debug)]
@@ -25,6 +31,13 @@ struct HaikuOptions {
     /// Print all haikus
     #[arg(long)]
     all: bool,
+}
+
+#[derive(clap::Parser, Debug)]
+struct CmdOptions {
+    /// Source CSV files for command
+    #[arg(long)]
+    csv: Vec<String>,
 }
 
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs
@@ -99,6 +112,15 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Command::Haiku(options) => csvb::print_haiku(options.all),
+        Command::Cmd(options) => {
+            csvb::run_cmd(
+                &csvb::CmdOptions {
+                    memory_limit_bytes: args.memory_pool_bytes,
+                },
+                options.csv,
+            )
+            .await?
+        }
     }
     Ok(())
 }

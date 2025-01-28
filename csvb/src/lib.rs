@@ -1,3 +1,6 @@
+use anyhow::{bail, Result};
+use std::sync::Arc;
+
 pub static HAIKUS: [[&str; 3]; 10] = [
     [
         "Columns fall like rain,",
@@ -70,4 +73,30 @@ pub fn print_haiku(print_all: bool) {
                 .join(":")
         )
     }
+}
+
+pub struct CmdOptions {
+    /// The number of bytes the command memory pool should be limited to
+    pub memory_limit_bytes: usize,
+}
+
+pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>) -> Result<()> {
+    use datafusion::prelude::*;
+
+    if sources.is_empty() {
+        bail!("No sources provided when running command")
+    }
+
+    let session_config = SessionConfig::from_env()?.with_information_schema(true);
+    let mut rt_builder = datafusion::execution::runtime_env::RuntimeEnvBuilder::new();
+    rt_builder = rt_builder.with_memory_pool(Arc::new(
+        datafusion::execution::memory_pool::GreedyMemoryPool::new(options.memory_limit_bytes),
+    ));
+
+    let runtime_env = rt_builder.build_arc()?;
+    let ctx = SessionContext::new_with_config_rt(session_config, runtime_env);
+
+    let df = ctx.read_csv(sources, CsvReadOptions::new()).await?;
+    println!("Record count: {}", df.count().await?);
+    Ok(())
 }
