@@ -12,3 +12,6 @@
 # Bazel
 /bazel-*
 MODULE.bazel.lock
+
+# datafusion-cli
+.history

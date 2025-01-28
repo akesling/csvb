@@ -77,7 +77,7 @@ fn initialize_logging(
 ) -> anyhow::Result<()> {
     simplelog::CombinedLogger::init(
         module_path_filters
-            .into_iter()
+            .iter()
             .map(|(module_path_filter, level)| {
                 simplelog::TermLogger::new(
                     *level,
@@ -108,7 +108,8 @@ async fn main() -> anyhow::Result<()> {
         for level in levels_arg
             .as_deref()
             .map(as_level_pairs)
-            .unwrap_or(Ok(vec![]))?
+            .unwrap_or(Ok(vec![]))
+            .context("Log level override parsing failed")?
         {
             log_levels.insert(level);
         }
