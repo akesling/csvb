@@ -1,5 +1,7 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail};
 use std::sync::Arc;
+
+use csvb_engine as engine;
 
 pub static HAIKUS: [[&str; 3]; 10] = [
     [
@@ -80,7 +82,7 @@ pub struct CmdOptions {
     pub memory_limit_bytes: usize,
 }
 
-pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>) -> Result<()> {
+pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>, sql: &str) -> anyhow::Result<()> {
     use datafusion::prelude::*;
 
     if sources.is_empty() {
@@ -95,9 +97,32 @@ pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>) -> Result<()> {
 
     let runtime_env = rt_builder.build_arc()?;
     let ctx = SessionContext::new_with_config_rt(session_config, runtime_env);
-    // TODO(alex): Add UDF to print haiku
+    let csv_format = datafusion::datasource::file_format::csv::CsvFormat::default();
+    let listing_options =
+        datafusion::datasource::listing::ListingOptions::new(Arc::new(csv_format))
+            .with_file_extension(".csv");
 
-    let df = ctx.read_csv(sources, CsvReadOptions::new()).await?;
-    println!("Record count: {}", df.count().await?);
+    let table_paths: Vec<_> = sources
+        .iter()
+        .map(datafusion::datasource::listing::ListingTableUrl::parse)
+        .collect::<Result<_, _>>()
+        .map_err(|err| anyhow!("{err}"))?;
+    let resolved_schema = listing_options
+        .infer_schema(&ctx.state(), &table_paths[0])
+        .await?;
+    let config =
+        datafusion::datasource::listing::ListingTableConfig::new_with_multi_paths(table_paths)
+            .with_listing_options(listing_options)
+            .with_schema(resolved_schema);
+    let listing_table = datafusion::datasource::listing::ListingTable::try_new(config)?;
+
+    ctx.register_table("tbl", Arc::new(listing_table))?;
+    // TODO(alex): Add UDF to print haiku
+    //
+    let df = ctx.sql(sql).await?;
+    let batches = df.collect().await?;
+
+    let pretty_results = arrow::util::pretty::pretty_format_batches(&batches[..])?.to_string();
+    println!("Results:\n{}", pretty_results);
     Ok(())
 }

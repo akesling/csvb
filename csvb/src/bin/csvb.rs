@@ -38,6 +38,9 @@ struct CmdOptions {
     /// Source CSV files for command
     #[arg(long)]
     csv: Vec<String>,
+
+    #[arg()]
+    query: String,
 }
 
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs
@@ -118,6 +121,7 @@ async fn main() -> anyhow::Result<()> {
                     memory_limit_bytes: args.memory_pool_bytes,
                 },
                 options.csv,
+                &options.query,
             )
             .await?
         }
