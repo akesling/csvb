@@ -8,11 +8,11 @@ pub trait Engine {
     async fn execute(&mut self, query: &str) -> anyhow::Result<SendableRecordBatchStream>;
 }
 
-pub struct CsvbEngine {
+pub struct CsvbCore {
     context: SessionContext,
 }
 
-impl CsvbEngine {
+impl CsvbCore {
     #[allow(clippy::new_ret_no_self)]
     pub async fn new(
         sources: Vec<String>,
@@ -48,42 +48,13 @@ impl CsvbEngine {
 
         context.register_table("tbl", Arc::new(listing_table))?;
 
-        Ok(Box::new(CsvbEngine { context }))
+        Ok(Box::new(CsvbCore { context }))
     }
 }
 
 #[async_trait::async_trait]
-impl Engine for CsvbEngine {
+impl Engine for CsvbCore {
     async fn execute(&mut self, query: &str) -> anyhow::Result<SendableRecordBatchStream> {
         Ok(self.context.sql(query).await?.execute_stream().await?)
     }
-}
-
-pub struct CmdOptions {
-    /// The number of bytes the command memory pool should be limited to
-    pub memory_limit_bytes: usize,
-}
-
-pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>, sql: &str) -> anyhow::Result<()> {
-    use futures::stream::StreamExt as _;
-
-    if sources.is_empty() {
-        bail!("No sources provided when running command")
-    }
-
-    let mut engine = CsvbEngine::new(sources, options.memory_limit_bytes).await?;
-    let mut stream = engine.execute(sql).await?;
-    let mut batches = Vec::new();
-    while let Some(items) = stream.next().await {
-        batches.push(items?);
-    }
-
-    //while let Some(batch) = stream.next().await {
-    //    let pretty_results = arrow::util::pretty::pretty_format_batches(&[items?])?.to_string();
-    //    println!("Results:\n{}", pretty_results);
-    //}
-
-    let pretty_results = arrow::util::pretty::pretty_format_batches(&batches[..])?.to_string();
-    println!("Results:\n{}", pretty_results);
-    Ok(())
 }

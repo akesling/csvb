@@ -1,5 +1,6 @@
+use anyhow::bail;
+
 use csvb_engine as engine;
-pub use engine::{run_cmd, CmdOptions};
 
 pub static HAIKUS: [[&str; 3]; 10] = [
     [
@@ -75,4 +76,32 @@ pub fn print_haiku(print_all: bool) {
     }
 }
 
-// TODO(alex): Create UDF to print haiku
+pub struct CmdOptions {
+    /// The number of bytes the command memory pool should be limited to
+    pub memory_limit_bytes: usize,
+}
+
+pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>, sql: &str) -> anyhow::Result<()> {
+    use futures::stream::StreamExt as _;
+
+    if sources.is_empty() {
+        bail!("No sources provided when running command")
+    }
+
+    // TODO(alex): Create UDF to print haiku
+    let mut engine = engine::CsvbCore::new(sources, options.memory_limit_bytes).await?;
+    let mut stream = engine.execute(sql).await?;
+    let mut batches = Vec::new();
+    while let Some(items) = stream.next().await {
+        batches.push(items?);
+    }
+
+    //while let Some(batch) = stream.next().await {
+    //    let pretty_results = arrow::util::pretty::pretty_format_batches(&[items?])?.to_string();
+    //    println!("Results:\n{}", pretty_results);
+    //}
+
+    let pretty_results = arrow::util::pretty::pretty_format_batches(&batches[..])?.to_string();
+    println!("Results:\n{}", pretty_results);
+    Ok(())
+}
