@@ -10,6 +10,7 @@ resolver = "2"
 [workspace.dependencies]
 anyhow = "1.0"
 arrow = { version = "53", feature = "prettyprint" }
+async-trait = "0.1.85"
 chrono = "0.4"
 clap = { version = "4.3.19", features = ["derive"]}
 datafusion = "42.0.0"

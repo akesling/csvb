@@ -30,6 +30,9 @@ rust_library(
         "@crate_index//:tokio-util",
         "@crate_index//:url",
     ],
+    proc_macro_deps = [
+        "@crate_index//:async-trait",
+    ],
 )
 
 rust_test(
