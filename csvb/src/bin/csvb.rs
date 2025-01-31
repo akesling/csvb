@@ -45,7 +45,7 @@ async fn exec(context: &GlobalOptions, options: &ExecOptions) -> anyhow::Result<
         &csvb::CmdOptions {
             memory_limit_bytes: context.memory_pool_bytes,
         },
-        options.csv.clone(),
+        &options.csv,
         &options.query,
     )
     .await
@@ -62,8 +62,13 @@ struct ServeOptions {
     address: String,
 }
 
-async fn serve(_context: &GlobalOptions, _options: &ServeOptions) -> Result<()> {
-    todo!("Implement serve command")
+async fn serve(context: &GlobalOptions, options: &ServeOptions) -> Result<()> {
+    if options.csv.is_empty() {
+        bail!("No sources provided when running command")
+    }
+
+    let mut engine = csvb::engine::CsvbCore::new(&options.csv, context.memory_pool_bytes).await?;
+    engine.serve(&options.address).await?.await?
 }
 
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs

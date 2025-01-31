@@ -1,12 +1,7 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 use std::sync::Arc;
 
 use datafusion::{execution::SendableRecordBatchStream, prelude::SessionContext};
-
-#[async_trait::async_trait]
-pub trait Engine {
-    async fn execute(&mut self, query: &str) -> anyhow::Result<SendableRecordBatchStream>;
-}
 
 pub struct CsvbCore {
     context: SessionContext,
@@ -14,10 +9,7 @@ pub struct CsvbCore {
 
 impl CsvbCore {
     #[allow(clippy::new_ret_no_self)]
-    pub async fn new(
-        sources: Vec<String>,
-        memory_limit_bytes: usize,
-    ) -> anyhow::Result<Box<dyn Engine>> {
+    pub async fn new(sources: &[String], memory_limit_bytes: usize) -> anyhow::Result<CsvbCore> {
         use datafusion::prelude::*;
         let session_config = SessionConfig::from_env()?.with_information_schema(true);
         let mut rt_builder = datafusion::execution::runtime_env::RuntimeEnvBuilder::new();
@@ -48,13 +40,51 @@ impl CsvbCore {
 
         context.register_table("tbl", Arc::new(listing_table))?;
 
-        Ok(Box::new(CsvbCore { context }))
+        Ok(CsvbCore { context })
     }
-}
 
-#[async_trait::async_trait]
-impl Engine for CsvbCore {
-    async fn execute(&mut self, query: &str) -> anyhow::Result<SendableRecordBatchStream> {
+    pub async fn execute(&mut self, query: &str) -> anyhow::Result<SendableRecordBatchStream> {
         Ok(self.context.sql(query).await?.execute_stream().await?)
+    }
+
+    pub async fn serve(
+        &mut self,
+        serve_address: &str,
+    ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
+        log::debug!("Starting up a new server");
+        let listener = tokio::net::TcpListener::bind(serve_address)
+            .await
+            .context(format!("run_server failed to bind to {serve_address}"))?;
+
+        log::info!("Listening to {}", serve_address);
+
+        let factory = Arc::new(datafusion_postgres::HandlerFactory(Arc::new(
+            datafusion_postgres::DfSessionService::new(self.context.clone()),
+        )));
+
+        Ok(tokio::spawn(async move {
+            loop {
+                let incoming_socket = listener.accept().await.context(
+                    "run_server listener failed when attempting to open incoming socket",
+                )?;
+                let factory_ref = factory.clone();
+
+                tokio::spawn(async move {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs();
+                    log::debug!(
+                        "Starting new session for incoming socket connection. (time={now})"
+                    );
+                    let result =
+                        pgwire::tokio::process_socket(incoming_socket.0, None, factory_ref).await;
+                    log::debug!("No longer listening on socket (start-time={now})");
+                    result
+                });
+            }
+            #[allow(unreachable_code)]
+            Ok(())
+        }))
     }
 }

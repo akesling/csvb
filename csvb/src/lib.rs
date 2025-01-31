@@ -1,6 +1,6 @@
 use anyhow::bail;
 
-use csvb_engine as engine;
+pub use csvb_engine as engine;
 
 pub static HAIKUS: [[&str; 3]; 10] = [
     [
@@ -81,7 +81,7 @@ pub struct CmdOptions {
     pub memory_limit_bytes: usize,
 }
 
-pub async fn run_cmd(options: &CmdOptions, sources: Vec<String>, sql: &str) -> anyhow::Result<()> {
+pub async fn run_cmd(options: &CmdOptions, sources: &[String], sql: &str) -> anyhow::Result<()> {
     use futures::stream::StreamExt as _;
 
     if sources.is_empty() {
