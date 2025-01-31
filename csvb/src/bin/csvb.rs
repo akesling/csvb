@@ -35,6 +35,7 @@ struct ExecOptions {
     #[arg(long)]
     csv: Vec<String>,
 
+    /// The query to execute on the virtual table `tbl`
     #[arg()]
     query: String,
 }
