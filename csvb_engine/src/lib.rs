@@ -1,7 +1,7 @@
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use std::sync::Arc;
 
-use datafusion::{execution::SendableRecordBatchStream, prelude::SessionContext, sql::sqlparser};
+use datafusion::{execution::SendableRecordBatchStream, prelude::SessionContext};
 
 #[async_trait::async_trait]
 pub trait Engine {

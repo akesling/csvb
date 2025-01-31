@@ -18,12 +18,8 @@ struct Args {
     memory_pool_bytes: usize,
 }
 
-#[derive(clap::Subcommand, Debug)]
-enum Command {
-    /// Print a random haiku
-    Haiku(HaikuOptions),
-    /// Print a random haiku
-    Cmd(CmdOptions),
+struct GlobalOptions {
+    memory_pool_bytes: usize,
 }
 
 #[derive(clap::Parser, Debug)]
@@ -34,13 +30,39 @@ struct HaikuOptions {
 }
 
 #[derive(clap::Parser, Debug)]
-struct CmdOptions {
+struct ExecOptions {
     /// Source CSV files for command
     #[arg(long)]
     csv: Vec<String>,
 
     #[arg()]
     query: String,
+}
+
+async fn exec(context: &GlobalOptions, options: &ExecOptions) -> anyhow::Result<()> {
+    csvb::run_cmd(
+        &csvb::CmdOptions {
+            memory_limit_bytes: context.memory_pool_bytes,
+        },
+        options.csv.clone(),
+        &options.query,
+    )
+    .await
+}
+
+#[derive(clap::Parser, Debug)]
+struct ServeOptions {
+    /// Source CSV files for server
+    #[arg(long)]
+    csv: Vec<String>,
+
+    /// Serving address
+    #[arg(default_value = "127.0.0.1:5432")]
+    address: String,
+}
+
+async fn serve(_context: &GlobalOptions, _options: &ServeOptions) -> Result<()> {
+    todo!("Implement serve command")
 }
 
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs
@@ -88,6 +110,16 @@ fn initialize_logging(
     .map_err(|e| e.into())
 }
 
+#[derive(clap::Subcommand, Debug)]
+enum Command {
+    /// Print a random haiku
+    Haiku(HaikuOptions),
+    /// Execute SQL over CSV files
+    Exec(ExecOptions),
+    /// Serve PostgreSQL wire protocol server over CSV files
+    Serve(ServeOptions),
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -113,18 +145,13 @@ async fn main() -> anyhow::Result<()> {
     let _ = initialize_logging(&log_levels[..]);
     log::trace!("Logging initialized, commands parsed...");
 
+    let context = GlobalOptions {
+        memory_pool_bytes: args.memory_pool_bytes,
+    };
     match args.command {
         Command::Haiku(options) => csvb::print_haiku(options.all),
-        Command::Cmd(options) => {
-            csvb::run_cmd(
-                &csvb::CmdOptions {
-                    memory_limit_bytes: args.memory_pool_bytes,
-                },
-                options.csv,
-                &options.query,
-            )
-            .await?
-        }
+        Command::Exec(options) => exec(&context, &options).await?,
+        Command::Serve(options) => serve(&context, &options).await?,
     }
     Ok(())
 }
