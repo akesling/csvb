@@ -59,6 +59,8 @@ impl CsvbCore {
         log::info!("Listening to {}", serve_address);
 
         let factory = Arc::new(datafusion_postgres::HandlerFactory(Arc::new(
+            // TODO(akesling): wrap Engine instead of using DfSessionService over the context.
+            // This will give us more control and provide a better stack of abstractions.
             datafusion_postgres::DfSessionService::new(self.context.clone()),
         )));
 
@@ -87,4 +89,26 @@ impl CsvbCore {
             Ok(())
         }))
     }
+
+    pub async fn federate<SHARD_TYPE>(
+        &mut self,
+        serve_address: &str,
+        sharded_tables: &[VirtualTable<'_, SHARD_TYPE>],
+    ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
+        // TODO(akesling): Build out a table provider per shard which pushes down with datafusion
+        // federation and create some listingtable-like thing which delegates across the unified
+        // `tbl` surfaced to the user.
+        todo!()
+    }
+}
+
+pub struct VirtualTable<'a, SHARD_TYPE> {
+    name: &'a str,
+    shards: &'a [PgShardConfig<SHARD_TYPE>],
+}
+
+pub struct PgShardConfig<SHARD_TYPE> {
+    address: String,
+    shard_key: String,
+    shard_range: (SHARD_TYPE, SHARD_TYPE),
 }

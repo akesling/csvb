@@ -1,4 +1,4 @@
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 
 pub use csvb_engine as engine;
 
@@ -56,7 +56,7 @@ pub static HAIKUS: [[&str; 3]; 10] = [
 ];
 
 /// Print a random CSV-related haiku
-pub fn print_haiku(print_all: bool) {
+pub fn print_haiku(print_all: bool) -> anyhow::Result<()> {
     use rand::seq::SliceRandom as _;
 
     println!("line 1: line 2: line 3");
@@ -70,10 +70,11 @@ pub fn print_haiku(print_all: bool) {
             "{}",
             HAIKUS
                 .choose(&mut rng)
-                .expect("at least one haiku")
+                .ok_or(anyhow!("at least one haiku"))?
                 .join(":")
         )
     }
+    Ok(())
 }
 
 pub struct CmdOptions {

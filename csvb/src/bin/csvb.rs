@@ -29,6 +29,10 @@ struct HaikuOptions {
     all: bool,
 }
 
+async fn haiku(_context: &GlobalOptions, options: &HaikuOptions) -> anyhow::Result<()> {
+    csvb::print_haiku(options.all)
+}
+
 #[derive(clap::Parser, Debug)]
 struct ExecOptions {
     /// Source CSV files for command
@@ -69,6 +73,25 @@ async fn serve(context: &GlobalOptions, options: &ServeOptions) -> Result<()> {
 
     let mut engine = csvb::engine::CsvbCore::new(&options.csv, context.memory_pool_bytes).await?;
     engine.serve(&options.address).await?.await?
+}
+
+#[derive(clap::Parser, Debug)]
+struct FederateOptions {
+    /// Addresses of shard nodes
+    #[arg(long)]
+    shard_addresses: Vec<String>,
+
+    /// Sharding key used to push down queries to shards
+    #[arg(long)]
+    shard_key: String,
+
+    /// Serving address
+    #[arg(default_value = "127.0.0.1:5432")]
+    serving_address: String,
+}
+
+async fn federate(context: &GlobalOptions, options: &FederateOptions) -> Result<()> {
+    todo!("Implement shard federation")
 }
 
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs
@@ -124,6 +147,8 @@ enum Command {
     Exec(ExecOptions),
     /// Serve PostgreSQL wire protocol server over CSV files
     Serve(ServeOptions),
+    /// Serve federated CSVB nodes
+    Federate(FederateOptions),
 }
 
 #[tokio::main]
@@ -155,9 +180,10 @@ async fn main() -> anyhow::Result<()> {
         memory_pool_bytes: args.memory_pool_bytes,
     };
     match args.command {
-        Command::Haiku(options) => csvb::print_haiku(options.all),
+        Command::Haiku(options) => haiku(&context, &options).await?,
         Command::Exec(options) => exec(&context, &options).await?,
         Command::Serve(options) => serve(&context, &options).await?,
+        Command::Federate(options) => federate(&context, &options).await?,
     }
     Ok(())
 }
