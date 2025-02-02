@@ -72,7 +72,7 @@ async fn serve(context: &GlobalOptions, options: &ServeOptions) -> Result<()> {
     }
 
     let mut engine = csvb::engine::CsvbCore::new(&options.csv, context.memory_pool_bytes).await?;
-    engine.serve(&options.address).await?.await?
+    engine.serve_local_data(&options.address).await?.await?
 }
 
 #[derive(clap::Parser, Debug)]
@@ -83,7 +83,7 @@ struct FederateOptions {
 
     /// Sharding key used to push down queries to shards
     #[arg(long)]
-    shard_key: String,
+    table_name: String,
 
     /// Serving address
     #[arg(default_value = "127.0.0.1:5432")]
@@ -91,7 +91,17 @@ struct FederateOptions {
 }
 
 async fn federate(context: &GlobalOptions, options: &FederateOptions) -> Result<()> {
-    todo!("Implement shard federation")
+    let mut engine = csvb::engine::CsvbCore::new(&[], context.memory_pool_bytes).await?;
+    engine
+        .serve_federated_data(
+            &options.serving_address,
+            &[csvb::engine::VirtualTable {
+                name: &options.table_name,
+                shard_addrs: &options.shard_addresses,
+            }],
+        )
+        .await?
+        .await?
 }
 
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs

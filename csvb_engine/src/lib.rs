@@ -9,7 +9,10 @@ pub struct CsvbCore {
 
 impl CsvbCore {
     #[allow(clippy::new_ret_no_self)]
-    pub async fn new(sources: &[String], memory_limit_bytes: usize) -> anyhow::Result<CsvbCore> {
+    pub async fn new(
+        local_sources: &[String],
+        memory_limit_bytes: usize,
+    ) -> anyhow::Result<CsvbCore> {
         use datafusion::prelude::*;
         let session_config = SessionConfig::from_env()?.with_information_schema(true);
         let mut rt_builder = datafusion::execution::runtime_env::RuntimeEnvBuilder::new();
@@ -19,26 +22,30 @@ impl CsvbCore {
 
         let runtime_env = rt_builder.build_arc()?;
         let context = SessionContext::new_with_config_rt(session_config, runtime_env);
-        let csv_format = datafusion::datasource::file_format::csv::CsvFormat::default();
-        let listing_options =
-            datafusion::datasource::listing::ListingOptions::new(Arc::new(csv_format))
-                .with_file_extension(".csv");
 
-        let table_paths: Vec<_> = sources
-            .iter()
-            .map(datafusion::datasource::listing::ListingTableUrl::parse)
-            .collect::<Result<_, _>>()
-            .map_err(|err| anyhow!("{err}"))?;
-        let resolved_schema = listing_options
-            .infer_schema(&context.state(), &table_paths[0])
-            .await?;
-        let config =
-            datafusion::datasource::listing::ListingTableConfig::new_with_multi_paths(table_paths)
-                .with_listing_options(listing_options)
-                .with_schema(resolved_schema);
-        let listing_table = datafusion::datasource::listing::ListingTable::try_new(config)?;
+        if !local_sources.is_empty() {
+            let csv_format = datafusion::datasource::file_format::csv::CsvFormat::default();
+            let listing_options =
+                datafusion::datasource::listing::ListingOptions::new(Arc::new(csv_format))
+                    .with_file_extension(".csv");
 
-        context.register_table("tbl", Arc::new(listing_table))?;
+            let table_paths: Vec<_> = local_sources
+                .iter()
+                .map(datafusion::datasource::listing::ListingTableUrl::parse)
+                .collect::<Result<_, _>>()
+                .map_err(|err| anyhow!("{err}"))?;
+            let resolved_schema = listing_options
+                .infer_schema(&context.state(), &table_paths[0])
+                .await?;
+            let config = datafusion::datasource::listing::ListingTableConfig::new_with_multi_paths(
+                table_paths,
+            )
+            .with_listing_options(listing_options)
+            .with_schema(resolved_schema);
+            let listing_table = datafusion::datasource::listing::ListingTable::try_new(config)?;
+
+            context.register_table("tbl", Arc::new(listing_table))?;
+        }
 
         Ok(CsvbCore { context })
     }
@@ -47,7 +54,7 @@ impl CsvbCore {
         Ok(self.context.sql(query).await?.execute_stream().await?)
     }
 
-    pub async fn serve(
+    pub async fn serve_local_data(
         &mut self,
         serve_address: &str,
     ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
@@ -90,10 +97,10 @@ impl CsvbCore {
         }))
     }
 
-    pub async fn federate<SHARD_TYPE>(
+    pub async fn serve_federated_data(
         &mut self,
-        serve_address: &str,
-        sharded_tables: &[VirtualTable<'_, SHARD_TYPE>],
+        _serve_address: &str,
+        _sharded_tables: &[VirtualTable<'_>],
     ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
         // TODO(akesling): Build out a table provider per shard which pushes down with datafusion
         // federation and create some listingtable-like thing which delegates across the unified
@@ -102,13 +109,7 @@ impl CsvbCore {
     }
 }
 
-pub struct VirtualTable<'a, SHARD_TYPE> {
-    name: &'a str,
-    shards: &'a [PgShardConfig<SHARD_TYPE>],
-}
-
-pub struct PgShardConfig<SHARD_TYPE> {
-    address: String,
-    shard_key: String,
-    shard_range: (SHARD_TYPE, SHARD_TYPE),
+pub struct VirtualTable<'a> {
+    pub name: &'a str,
+    pub shard_addrs: &'a [String],
 }
