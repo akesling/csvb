@@ -14,9 +14,9 @@ async-trait = "0.1.85"
 chrono = "0.4"
 clap = { version = "4.3.19", features = ["derive"]}
 datafusion = "42.0.0"
-datafusion-federation = "0.3.0"
-datafusion-postgres = "0.3.0"
-datafusion-table-providers = { version = "=0.2.3", features = ["postgres"]}
+datafusion-federation = "=0.3.0"
+datafusion-postgres = "=0.3.0"
+datafusion-table-providers = { version = "=0.2.3", features = ["postgres-federation"]}
 futures = "0.3.30"
 itertools = "0.13"
 lazy_static= "1.4"

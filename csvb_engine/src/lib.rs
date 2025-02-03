@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Context as _};
@@ -113,6 +113,7 @@ impl CsvbCore {
         // federation and create some listingtable-like thing which delegates across the unified
         // `tbl` surfaced to the user.
         //
+        let mut table_providers = BTreeMap::new();
         for virtual_table in sharded_tables {
             let mut shard_providers = vec![];
             for addr in virtual_table.shard_addrs {
@@ -137,10 +138,27 @@ impl CsvbCore {
             }
 
             let virtual_table_provider = todo!("Actually implement an aggregate table provider");
-            self.context
-                .register_table(virtual_table.name, virtual_table_provider);
+            table_providers.insert(virtual_table.name, virtual_table_provider);
         }
-        todo!()
+
+        //let session_state = self
+        //    .context
+        //    .into_state_builder()
+        //    .with_optimizer_rules({
+        //        let mut rules = Optimizer::new().rules;
+        //        rules.push(Arc::new(FederationOptimizerRule::new()));
+        //        rules
+        //    })
+        //    .with_query_planner(Arc::new(FederatedQueryPlanner::new()))
+        //    .build();
+
+        //let schema_provider = MultiSchemaProvider::new(vec![sqlite_schema_provider, postgres_schema_provider]);
+        //overwrite_default_schema(&state, Arc::new(schema_provider))
+        //    .expect("Overwrite the default schema form the main context");
+        todo!("Register virtual tables");
+
+        // Create the session context for the main db
+        //self.context = SessionContext::new_with_state(session_state);
     }
 }
 
