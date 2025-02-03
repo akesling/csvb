@@ -14,11 +14,14 @@ async-trait = "0.1.85"
 chrono = "0.4"
 clap = { version = "4.3.19", features = ["derive"]}
 datafusion = "42.0.0"
+datafusion-federation = "0.3.0"
 datafusion-postgres = "0.3.0"
+datafusion-table-providers = { version = "=0.2.3", features = ["postgres"]}
 futures = "0.3.30"
 itertools = "0.13"
 lazy_static= "1.4"
 log = "0.4"
+object_store = { version = "0.11", features = ["aws"] }
 pgwire = "0.25.0"
 pretty_assertions = "1.4.1"
 rand = "0.8.5"

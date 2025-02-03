@@ -90,7 +90,9 @@ pub async fn run_cmd(options: &CmdOptions, sources: &[String], sql: &str) -> any
     }
 
     // TODO(alex): Create UDF to print haiku
-    let mut engine = engine::CsvbCore::new(sources, options.memory_limit_bytes).await?;
+    let mut engine = engine::CsvbCore::new(options.memory_limit_bytes)?
+        .add_local_table("tbl", sources)
+        .await?;
     let mut stream = engine.execute(sql).await?;
     let mut batches = Vec::new();
     while let Some(items) = stream.next().await {

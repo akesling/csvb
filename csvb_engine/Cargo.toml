@@ -10,11 +10,13 @@ async-trait = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 datafusion = { workspace = true }
+datafusion-federation = { workspace = true }
 datafusion-postgres = { workspace = true }
+datafusion-table-providers = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
-object_store = { version = "0.11", features = ["aws"] }
+object_store = { workspace = true }
 pgwire = { workspace = true }
 pretty_assertions = { workspace = true }
 rand = { workspace = true }

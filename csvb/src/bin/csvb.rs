@@ -71,8 +71,11 @@ async fn serve(context: &GlobalOptions, options: &ServeOptions) -> Result<()> {
         bail!("No sources provided when running command")
     }
 
-    let mut engine = csvb::engine::CsvbCore::new(&options.csv, context.memory_pool_bytes).await?;
-    engine.serve_local_data(&options.address).await?.await?
+    let mut engine = csvb::engine::CsvbCore::new(context.memory_pool_bytes)?
+        .add_local_table("tbl", &options.csv)
+        .await?;
+    let join_handle = engine.serve(&options.address).await?;
+    join_handle.await?
 }
 
 #[derive(clap::Parser, Debug)]
@@ -91,17 +94,15 @@ struct FederateOptions {
 }
 
 async fn federate(context: &GlobalOptions, options: &FederateOptions) -> Result<()> {
-    let mut engine = csvb::engine::CsvbCore::new(&[], context.memory_pool_bytes).await?;
-    engine
-        .serve_federated_data(
-            &options.serving_address,
-            &[csvb::engine::VirtualTable {
-                name: &options.table_name,
-                shard_addrs: &options.shard_addresses,
-            }],
-        )
-        .await?
-        .await?
+    let mut engine = csvb::engine::CsvbCore::new(context.memory_pool_bytes)?
+        .add_federated_tables(&[csvb::engine::VirtualTable {
+            name: &options.table_name,
+            shard_addrs: &options.shard_addresses,
+        }])
+        .await?;
+    let join_handle = engine.serve(&options.serving_address).await?;
+
+    join_handle.await?
 }
 
 /// Convert a series of <MODULE>:<LEVEL> pairs into actionable `(module, LevelFilter)` pairs
