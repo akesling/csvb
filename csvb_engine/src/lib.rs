@@ -2,8 +2,12 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Context as _};
+use datafusion::datasource::TableProvider;
 use datafusion::{execution::SendableRecordBatchStream, prelude::SessionContext};
 use url::Url;
+
+mod union_table_provider;
+use union_table_provider::UnionTableProvider;
 
 pub struct CsvbCore {
     context: SessionContext,
@@ -109,99 +113,59 @@ impl CsvbCore {
         self,
         sharded_tables: &[VirtualTable<'_>],
     ) -> anyhow::Result<CsvbCore> {
-        // TODO(akesling): Build out a table provider per shard which pushes down with datafusion
-        // federation and create some listingtable-like thing which delegates across the unified
-        // `tbl` surfaced to the user.
-        //
         let mut table_providers = BTreeMap::new();
         for virtual_table in sharded_tables {
-            let mut shard_providers = vec![];
+            let mut shard_providers: Vec<Arc<dyn TableProvider>> = vec![];
             for addr in virtual_table.shard_addrs {
-                let postgres_params = datafusion_table_providers::util::secrets::to_secret_map(
-                    parse_postgres_conn_str(addr)?,
-                );
-                let postgres_pool = Arc::new(
-                datafusion_table_providers::sql::db_connection_pool::postgrespool::PostgresConnectionPool::new(postgres_params)
-                        .await
-                        .expect("unable to create Postgres connection pool"),
+                log::trace!(
+                    "Assembling shard table provider for virtual table '{}' w/ address '{}'",
+                    virtual_table.name,
+                    addr
                 );
 
-                let table_factory =
-                    datafusion_table_providers::postgres::PostgresTableFactory::new(postgres_pool);
+                let parsed = postgres_provider::parse_postgres_conn_str(addr)?;
+                log::trace!("Parsing '{addr}' resulted in '{parsed:?}'");
 
-                let provider = table_factory
-                    .table_provider(datafusion::sql::TableReference::bare(virtual_table.name))
-                    .await
-                    .expect("to create table provider");
+                log::trace!("Building provider itself");
+                let provider =
+                    postgres_provider::new_postgres_provider(virtual_table.name, parsed).await?;
 
                 shard_providers.push(provider);
             }
 
-            let virtual_table_provider = todo!("Actually implement an aggregate table provider");
+            // Assert that all shard providers have equivalent schema
+            let schema = shard_providers
+                .first()
+                .ok_or(anyhow!("No shard providers were found"))?
+                .schema();
+            for provider in &shard_providers {
+                if provider.schema() != schema {
+                    bail!("Schema of shards was not identical")
+                }
+            }
+
+            log::trace!(
+                "Assembling UnionTableProvider for table {}",
+                virtual_table.name
+            );
+            let virtual_table_provider = UnionTableProvider::new(shard_providers, schema);
             table_providers.insert(virtual_table.name, virtual_table_provider);
         }
 
-        //let session_state = self
-        //    .context
-        //    .into_state_builder()
-        //    .with_optimizer_rules({
-        //        let mut rules = Optimizer::new().rules;
-        //        rules.push(Arc::new(FederationOptimizerRule::new()));
-        //        rules
-        //    })
-        //    .with_query_planner(Arc::new(FederatedQueryPlanner::new()))
-        //    .build();
-
-        //let schema_provider = MultiSchemaProvider::new(vec![sqlite_schema_provider, postgres_schema_provider]);
-        //overwrite_default_schema(&state, Arc::new(schema_provider))
-        //    .expect("Overwrite the default schema form the main context");
-        todo!("Register virtual tables");
-
-        // Create the session context for the main db
-        //self.context = SessionContext::new_with_state(session_state);
+        for (name, provider) in table_providers {
+            if self
+                .context
+                .register_table(name, Arc::new(provider))?
+                .is_some()
+            {
+                bail!("Table provider registered multiple times for table '{name}'");
+            }
+        }
+        Ok(self)
     }
 }
 
 pub struct VirtualTable<'a> {
     pub name: &'a str,
     pub shard_addrs: &'a [String],
-}
-
-fn parse_postgres_conn_str(conn_str: &str) -> anyhow::Result<HashMap<String, String>> {
-    let url = Url::parse(conn_str)?;
-    let mut map = HashMap::new();
-
-    map.insert("scheme".to_string(), url.scheme().to_string());
-
-    let user = url.username();
-    if !user.is_empty() {
-        map.insert("user".to_string(), user.to_string());
-    }
-
-    if let Some(password) = url.password() {
-        map.insert("password".to_string(), password.to_string());
-    }
-
-    if let Some(host) = url.host_str() {
-        map.insert("host".to_string(), host.to_string());
-    }
-
-    if let Some(port) = url.port() {
-        map.insert("port".to_string(), port.to_string());
-    }
-
-    // Extract the first path segment as the database name.
-    // Note: the path is provided with a leading '/', so path_segments() will omit it.
-    if let Some(dbname) = url.path_segments().and_then(|mut segments| segments.next()) {
-        // Only add the database name if it's non-empty.
-        if !dbname.is_empty() {
-            map.insert("dbname".to_string(), dbname.to_string());
-        }
-    }
-
-    for (key, value) in url.query_pairs() {
-        map.insert(key.to_string(), value.to_string());
-    }
-
-    Ok(map)
 }

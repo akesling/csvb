@@ -68,31 +68,31 @@ rust_binary(
         "@crate_index//:url",
     ],
 )
-
-pkg_tar(
-    name = "tar",
-    srcs = [
-        ":bin",
-    ],
-)
-
-platform_transition_filegroup(
-    name = "linux_tarball",
-    srcs = [":tar"],
-    target_platform = "//bazel/config/platform/rust:linux_x86_64",
-)
-
-oci_image(
-    name = "oci",
-    os = "linux",
-    architecture = "x86_64",
-    tars = [
-        ":linux_tarball",
-    ],
-)
-
-oci_load(
-    name = "load_to_local_docker",
-    image = ":oci",
-    repo_tags = ["csvb:latest"],
-)
+#
+# pkg_tar(
+#     name = "tar",
+#     srcs = [
+#         ":bin",
+#     ],
+# )
+#
+# platform_transition_filegroup(
+#     name = "linux_tarball",
+#     srcs = [":tar"],
+#     target_platform = "//bazel/config/platform/rust:linux_x86_64",
+# )
+#
+# oci_image(
+#     name = "oci",
+#     os = "linux",
+#     architecture = "x86_64",
+#     tars = [
+#         ":linux_tarball",
+#     ],
+# )
+#
+# oci_load(
+#     name = "load_to_local_docker",
+#     image = ":oci",
+#     repo_tags = ["csvb:latest"],
+# )

@@ -82,7 +82,12 @@ pub struct CmdOptions {
     pub memory_limit_bytes: usize,
 }
 
-pub async fn run_cmd(options: &CmdOptions, sources: &[String], sql: &str) -> anyhow::Result<()> {
+pub async fn run_cmd(
+    options: &CmdOptions,
+    sources: &[String],
+    table_name: &str,
+    sql: &str,
+) -> anyhow::Result<()> {
     use futures::stream::StreamExt as _;
 
     if sources.is_empty() {
@@ -91,7 +96,7 @@ pub async fn run_cmd(options: &CmdOptions, sources: &[String], sql: &str) -> any
 
     // TODO(alex): Create UDF to print haiku
     let mut engine = engine::CsvbCore::new(options.memory_limit_bytes)?
-        .add_local_table("tbl", sources)
+        .add_local_table(table_name, sources)
         .await?;
     let mut stream = engine.execute(sql).await?;
     let mut batches = Vec::new();
