@@ -39,6 +39,12 @@ struct ExecOptions {
     #[arg(long)]
     csv: Vec<String>,
 
+    // TODO(alex): Allow arbitrarily binding csv files to tables so we can have multiple tables
+    // surfaced.
+    /// Name for virtual table
+    #[arg(long, default_value = "tbl")]
+    table_name: String,
+
     /// The query to execute on the virtual table `tbl`
     #[arg()]
     query: String,
@@ -50,6 +56,7 @@ async fn exec(context: &GlobalOptions, options: &ExecOptions) -> anyhow::Result<
             memory_limit_bytes: context.memory_pool_bytes,
         },
         &options.csv,
+        &options.table_name,
         &options.query,
     )
     .await
@@ -60,6 +67,12 @@ struct ServeOptions {
     /// Source CSV files for server
     #[arg(long)]
     csv: Vec<String>,
+
+    // TODO(alex): Allow arbitrarily binding csv files to tables so we can have multiple tables
+    // surfaced.
+    /// Name for virtual table
+    #[arg(long, default_value = "tbl")]
+    table_name: String,
 
     /// Serving address
     #[arg(default_value = "127.0.0.1:5432")]
@@ -72,7 +85,7 @@ async fn serve(context: &GlobalOptions, options: &ServeOptions) -> Result<()> {
     }
 
     let mut engine = csvb::engine::CsvbCore::new(context.memory_pool_bytes)?
-        .add_local_table("tbl", &options.csv)
+        .add_local_table(&options.table_name, &options.csv)
         .await?;
     let join_handle = engine.serve(&options.address).await?;
     join_handle.await?
@@ -84,8 +97,10 @@ struct FederateOptions {
     #[arg(long)]
     shard_addresses: Vec<String>,
 
+    // TODO(alex): Allow arbitrarily binding csv files to tables so we can have multiple tables
+    // surfaced.
     /// Sharding key used to push down queries to shards
-    #[arg(long)]
+    #[arg(long, default_value = "tbl")]
     table_name: String,
 
     /// Serving address

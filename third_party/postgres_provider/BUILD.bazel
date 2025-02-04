@@ -6,14 +6,15 @@ load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 package(default_visibility = ["//visibility:public"])
 
 rust_library(
-    name = "csvb_engine",
+    name = "postgres_provider",
     srcs = glob(["src/**/*.rs"], exclude=["src/bin/*"]),
     data = [],
     deps = [
-        "//third_party/postgres_provider",
-    ] + [
         "@crate_index//:anyhow",
         "@crate_index//:arrow",
+        "@crate_index//:async-stream",
+        "@crate_index//:bb8",
+        "@crate_index//:bb8-postgres",
         "@crate_index//:chrono",
         "@crate_index//:clap",
         "@crate_index//:datafusion",
@@ -27,11 +28,14 @@ rust_library(
         "@crate_index//:pretty_assertions",
         "@crate_index//:rand",
         "@crate_index//:regex",
+        "@crate_index//:secrecy",
         "@crate_index//:serde",
         "@crate_index//:serde_json",
         "@crate_index//:simplelog",
+        "@crate_index//:snafu",
         "@crate_index//:thiserror",
         "@crate_index//:tokio",
+        "@crate_index//:tokio-postgres",
         "@crate_index//:tokio-util",
         "@crate_index//:url",
     ],
@@ -41,8 +45,8 @@ rust_library(
 )
 
 rust_test(
-    name = "csvb_engine_test",
-    crate = ":csvb_engine",
+    name = "postgres_provider_test",
+    crate = ":postgres_provider",
     deps = [
         "@crate_index//:pretty_assertions",
         "@crate_index//:tokio",
