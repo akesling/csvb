@@ -71,7 +71,7 @@ impl CsvbCore {
             .await
             .context(format!("run_server failed to bind to {serve_address}"))?;
 
-        log::info!("Listening to {}", serve_address);
+        log::debug!("Listening to {}", serve_address);
 
         let factory = Arc::new(datafusion_postgres::HandlerFactory(Arc::new(
             // TODO(akesling): wrap Engine instead of using DfSessionService over the context.

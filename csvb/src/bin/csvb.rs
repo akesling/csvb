@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use anyhow::{bail, Context as _, Result};
 use clap::Parser;
@@ -168,19 +168,19 @@ async fn main() -> anyhow::Result<()> {
     let levels_arg: Option<Vec<String>> = args.log_levels;
 
     let log_levels: Vec<(&str, simplelog::LevelFilter)> = {
-        let mut log_levels = BTreeSet::from([
+        let mut log_levels = BTreeMap::from([
             ("csvb", simplelog::LevelFilter::Debug),
             // If compiled via Bazel, "csvb" binary crate module will be named "bin"
-            ("bin", simplelog::LevelFilter::Debug),
+            //("bin", simplelog::LevelFilter::Debug),
         ]);
 
-        for level in levels_arg
+        for (module, level) in levels_arg
             .as_deref()
             .map(as_level_pairs)
             .unwrap_or(Ok(vec![]))
             .context("Log level override parsing failed")?
         {
-            log_levels.insert(level);
+            log_levels.insert(module, level);
         }
         log_levels.into_iter().collect()
     };
