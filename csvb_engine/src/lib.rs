@@ -1,9 +1,10 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Context as _};
 use datafusion::datasource::TableProvider;
 use datafusion::{execution::SendableRecordBatchStream, prelude::SessionContext};
+use itertools::Itertools as _;
 use url::Url;
 
 mod union_table_provider;
@@ -29,13 +30,13 @@ impl CsvbCore {
         Ok(CsvbCore { context })
     }
 
-    pub async fn add_local_table(
+    pub async fn add_direct_table(
         self,
         name: &str,
-        local_sources: &[String],
+        sources: &[String],
     ) -> anyhow::Result<CsvbCore> {
-        if local_sources.is_empty() {
-            bail!("No local sources provided");
+        if sources.is_empty() {
+            bail!("No table sources provided");
         }
 
         let csv_format = datafusion::datasource::file_format::csv::CsvFormat::default();
@@ -43,11 +44,32 @@ impl CsvbCore {
             datafusion::datasource::listing::ListingOptions::new(Arc::new(csv_format))
                 .with_file_extension(".csv");
 
-        let table_paths: Vec<_> = local_sources
+        let table_paths: Vec<_> = sources
             .iter()
             .map(datafusion::datasource::listing::ListingTableUrl::parse)
             .collect::<Result<_, _>>()
             .map_err(|err| anyhow!("{err}"))?;
+
+        // This is a bit of a hack where we create a new object store for each recognized HTTP URL
+        for store_url in table_paths
+            .iter()
+            .map(datafusion::datasource::listing::ListingTableUrl::object_store)
+            .unique()
+            .filter(|s_url| s_url.as_str().starts_with("http"))
+        {
+            let store_url = store_url.as_str();
+            let http_store = Arc::new(
+                object_store::http::HttpBuilder::new()
+                    .with_url(store_url)
+                    .build()
+                    .context("HTTP Store failed to build")?,
+            );
+            self.context.runtime_env().register_object_store(
+                &Url::parse(store_url).context("Failed to parse object store base URL")?,
+                http_store,
+            );
+        }
+
         let resolved_schema = listing_options
             .infer_schema(&self.context.state(), &table_paths[0])
             .await?;

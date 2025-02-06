@@ -85,7 +85,7 @@ async fn serve(context: &GlobalOptions, options: &ServeOptions) -> Result<()> {
     }
 
     let mut engine = csvb::engine::CsvbCore::new(context.memory_pool_bytes)?
-        .add_local_table(&options.table_name, &options.csv)
+        .add_direct_table(&options.table_name, &options.csv)
         .await?;
     let join_handle = engine.serve(&options.address).await?;
     join_handle.await?
